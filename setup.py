@@ -5,7 +5,7 @@ with open("README", "r") as fh:
 
 setuptools.setup(
     name="tesla-powerwall-controller",
-    version="0.1",
+    version="0.2",
     author="samtherussell",
     description="Python controller for reading tesla powerwall status",
     long_description=long_description,
