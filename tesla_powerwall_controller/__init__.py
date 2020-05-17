@@ -1,28 +1,28 @@
 import requests
 import json
-import argparse
 
 protocol = "https://"
 base_api_path = "/api"
 battery_level_path = base_api_path + "/system_status/soe"
 power_levels_path = base_api_path + "/meters/aggregates"
-
+grid_connected_path = base_api_path + "/system_status/grid_status"
 
 class PowerwallController:
   def __init__(self, host):
     self.base_url = protocol + host
 
-  def get_battery_charge(self):
-    req = requests.get(self.base_url + battery_level_path, verify=False)
+  def request_api(self, path):
+    req = requests.get(self.base_url + path, verify=False)
     content = req.content.decode("utf-8")
-    result = json.loads(content)
+    return json.loads(content)
+
+  def get_battery_charge(self):
+    result = self.request_api(battery_level_path)
     val = int(result['percentage'])
     return f"The battery is at {val} percent"
 
   def get_battery_power(self):
-    req = requests.get(self.base_url + power_levels_path, verify=False)
-    content = req.content.decode("utf-8")
-    result = json.loads(content)
+    result = self.request_api(power_levels_path)
     val = int(result['battery']['instant_power'])
     if val == 0:
       return "The battery is not being used"
@@ -32,16 +32,12 @@ class PowerwallController:
       return f"The battery is supplying {val} watts"
 
   def get_solar_power(self):
-    req = requests.get(self.base_url + power_levels_path, verify=False)
-    content = req.content.decode("utf-8")
-    result = json.loads(content)
+    result = self.request_api(power_levels_path)
     val = int(result['solar']['instant_power'])
     return f"The solar panels are supplying {val} watts"
 
   def get_grid_power(self):
-    req = requests.get(self.base_url + power_levels_path, verify=False)
-    content = req.content.decode("utf-8")
-    result = json.loads(content)
+    result = self.request_api(power_levels_path)
     val = int(result['site']['instant_power'])
     if val == 0:
       return "The grid is not being used"
@@ -51,30 +47,18 @@ class PowerwallController:
       return f"You are importing {val} watts"
 
   def get_house_power(self):
-    req = requests.get(self.base_url + power_levels_path, verify=False)
-    content = req.content.decode("utf-8")
-    result = json.loads(content)
+    result = self.request_api(power_levels_path)
     val = int(result['load']['instant_power'])
     return f"The house is using {val} watts"
 
-if __name__ == "__main__":
-  parser = argparse.ArgumentParser()
-  parser.add_argument('host')
-  parser.add_argument('measurement', choices=['charge', 'battery', 'solar', 'grid', 'house'])
-  args = parser.parse_args()
-  con = PowerwallController(args.host)
-  if args.measurement == 'charge':
-    method = con.get_battery_charge
-  elif args.measurement == 'battery':
-    method = con.get_battery_power
-  elif args.measurement == 'solar':
-    method = con.get_solar_power
-  elif args.measurement == 'grid':
-    method = con.get_grid_power
-  elif args.measurement == 'house':
-    method = con.get_house_power
-  else:
-    raise Exception("invalid option")
-
-  print(method())
-    
+  def is_grid_connected(self):
+    result = self.request_api(grid_connected_path)
+    val = result['grid_status']
+    if val == "SystemGridConnected":
+      return "The house is connected to the grid"
+    elif val == "SystemIslandedActive":
+      return "The house is not connected to the grid"
+    elif val == "SystemTransitionToGrid":
+      return "The house is connecting to the grid"
+    else:
+       raise Exception("The powerwall returned an unknown status")
